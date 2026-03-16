@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>REBLOOMING - Memory & Embodied Interaction</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;1,6..96,400&family=Inter:wght@200;300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --accent-pink: #ff2d95;
+            --accent-purple: #9d00ff; 
+            --white: #ffffff; 
+            --glass-bg: rgba(255, 255, 255, 0.02);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --font-art: 'Bodoni Moda', serif;
+        }
+        body { margin: 0; overflow: hidden; background: #000; color: var(--white); font-family: 'Inter', sans-serif; }
+
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 100; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; transition: opacity 1.5s ease;
+        }
+        #load-status { letter-spacing: 0.8em; font-size: 8px; font-weight: 200; color: #555; text-transform: uppercase; margin-top: 20px;}
+
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; box-sizing: border-box; z-index: 10; }
+        
+        .header-title { position: absolute; top: 60px; left: 60px; text-align: left; pointer-events: auto; }
+        h1 { font-family: var(--font-art); font-size: 84px; margin: 0; letter-spacing: 0.05em; font-weight: 400; color: var(--white); text-transform: uppercase; line-height: 0.9; }
+        .subtitle { font-size: 10px; margin-top: 15px; color: rgba(255,255,255,0.3); letter-spacing: 0.5em; text-transform: uppercase; font-weight: 300; margin-bottom: 25px;}
+
+        .upload-btn {
+            display: inline-block; padding: 10px 20px; border: 1px solid var(--glass-border);
+            background: var(--glass-bg); color: var(--white); font-size: 10px; letter-spacing: 2px;
+            text-transform: uppercase; cursor: pointer; transition: 0.3s; backdrop-filter: blur(10px);
+        }
+        .upload-btn:hover { background: rgba(255,45,149,0.15); border-color: var(--accent-pink); }
+
+        .glass-panel {
+            position: absolute; bottom: 50px; left: 60px;
+            background: var(--glass-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border); border-radius: 20px; padding: 30px 40px; pointer-events: auto;
+        }
+        .guide-label { font-size: 9px; color: var(--accent-pink); letter-spacing: 4px; margin-bottom: 20px; font-weight: 400; text-transform: uppercase; }
+        .guide-item { color: rgba(255,255,255,0.85); margin: 15px 0; display: flex; align-items: flex-start; }
+        .guide-item-key { color: var(--accent-pink); margin-right: 15px; font-weight: 400; font-size: 14px; }
+        .guide-item-content { display: flex; flex-direction: column; }
+        .guide-text-en { font-size: 14px; letter-spacing: 0.05em; font-weight: 300; margin-bottom: 4px; }
+        .guide-text-zh { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 1px; font-weight: 300; }
+
+        #video-wrapper {
+            position: absolute; bottom: 50px; right: 60px; 
+            width: 240px; height: 180px; 
+            border: 1px solid rgba(255,255,255,0.05); 
+            background: #000; border-radius: 15px; overflow: hidden;
+            transform: scaleX(-1);
+        }
+        /* 修改：将摄像头画面设为黑白并增加对比度  */
+        #video-container { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            object-fit: cover; filter: grayscale(1) brightness(0.8) contrast(1.2); 
+        }
+        #output_canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div id="load-status">WITNESS THE BLOOM</div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="header-title">
+            <h1>Reblooming</h1>
+            <div class="subtitle">GRIEF HEALING // EMBODIED INTERACTION</div>
+            <label class="upload-btn" for="photo-upload">Upload Memory / 上传照片</label>
+            <input type="file" id="photo-upload" accept="image/*" style="display:none;">
+        </div>
+
+        <div class="glass-panel">
+            <div class="guide-label">Gesture Interaction / 交互引导</div>
+            <div class="guide-item">
+                <div class="guide-item-key">L</div>
+                <div class="guide-item-content">
+                    <span class="guide-text-en">DISPERSE & REVEAL</span>
+                    <span class="guide-text-zh">张开手掌扩散粒子并显影照片</span>
+                </div>
+            </div>
+            <div class="guide-item">
+                <div class="guide-item-key">R</div>
+                <div class="guide-item-content">
+                    <span class="guide-text-en">SCALE & ROTATION CONTROL</span>
+                    <span class="guide-text-zh">指尖控制模型缩放与正面旋转</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <video id="webcam" style="display:none;" autoplay playsinline></video>
+    <div id="video-wrapper">
+        <video id="video-container" autoplay playsinline></video>
+        <canvas id="output_canvas"></canvas>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0";
+
+        let scene, camera, renderer, composer, clock, particles, bloomPass, bgPlane;
+        let handLandmarker, webcamRunning = false;
+        const canvasElement = document.getElementById("output_canvas");
+        const canvasCtx = canvasElement.getContext("2d");
+        
+        let targetProgress = 0, currentProgress = 0, targetScale = 2.0, currentScale = 2.0, targetRotY = 0;
+        const videoElement = document.getElementById('webcam');
+        const videoPreview = document.getElementById('video-container');
+
+        async function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0.2, 5); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            composer = new EffectComposer(renderer);
+            composer.addPass(new RenderPass(scene, camera));
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.4, 0.85);
+            composer.addPass(bloomPass);
+
+            clock = new THREE.Clock();
+
+            const bgGeo = new THREE.PlaneGeometry(4, 3);
+            const bgMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+            bgPlane = new THREE.Mesh(bgGeo, bgMat);
+            bgPlane.position.z = -1;
+            scene.add(bgPlane);
+
+            new GLTFLoader().load('./flower test.glb', (gltf) => {
+                createParticleSystem(gltf.scene);
+                document.getElementById('loader').style.opacity = '0';
+                setTimeout(() => document.getElementById('loader').remove(), 1500);
+                initMediaPipe();
+                setupUpload();
+            });
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function setupUpload() {
+            const input = document.getElementById('photo-upload');
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        new THREE.TextureLoader().load(event.target.result, (texture) => {
+                            bgPlane.material.map = texture;
+                            bgPlane.material.needsUpdate = true;
+                            bgPlane.scale.set(texture.image.width / texture.image.height, 1, 1);
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        function createParticleSystem(model) {
+            const positions = [], uvs = [], directions = [];
+            let mainTexture = null;
+            model.traverse(child => {
+                if (child.isMesh) {
+                    if (child.material.map) mainTexture = child.material.map;
+                    const posAttr = child.geometry.attributes.position;
+                    const uvAttr = child.geometry.attributes.uv;
+                    for (let i = 0; i < posAttr.count; i++) {
+                        positions.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+                        uvs.push(uvAttr ? uvAttr.getX(i) : 0.5, uvAttr ? uvAttr.getY(i) : 0.5);
+                        directions.push((Math.random()-0.5)*6, (Math.random()-0.5)*6, (Math.random()-0.5)*6);
+                    }
+                }
+            });
+
+            const mat = new THREE.ShaderMaterial({
+                uniforms: { uTime: { value: 0 }, uProgress: { value: 0 }, uTexture: { value: mainTexture }, uScale: { value: 2.0 } },
+                transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+                vertexShader: `
+                    uniform float uTime, uProgress, uScale; uniform sampler2D uTexture; attribute vec3 aDirection; varying vec3 vColor; varying float vAlpha;
+                    void main() {
+                        vec4 texColor = texture2D(uTexture, uv);
+                        vColor = mix(texColor.rgb, mix(vec3(1.0, 0.17, 0.58), vec3(0.61, 0.0, 1.0), sin(uTime + position.y)*0.5+0.5), 0.3);
+                        vec3 pos = position + aDirection * uProgress;
+                        pos.y += sin(uTime * 2.0 + position.x) * 0.05;
+                        vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+                        gl_PointSize = (12.0 * (uScale/2.0)) * (1.0 / -mvPos.z) * (1.0 - uProgress * 0.5);
+                        gl_Position = projectionMatrix * mvPos;
+                        vAlpha = 1.0 - uProgress * 0.8;
+                    }
+                `,
+                fragmentShader: `varying vec3 vColor; varying float vAlpha; void main() { float d = distance(gl_PointCoord, vec2(0.5)); if(d>0.5) discard; gl_FragColor = vec4(vColor, (1.0-d*2.0) * vAlpha); }`
+            });
+            particles = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)).setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)).setAttribute('aDirection', new THREE.Float32BufferAttribute(directions, 3)), mat);
+            scene.add(particles);
+        }
+
+        async function initMediaPipe() {
+            const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
+            handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`, delegate: "GPU" },
+                runningMode: "VIDEO", numHands: 2
+            });
+            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                videoElement.srcObject = stream; videoPreview.srcObject = stream;
+                videoElement.addEventListener("loadeddata", () => { webcamRunning = true; canvasElement.width = videoPreview.videoWidth; canvasElement.height = videoPreview.videoHeight; });
+            });
+        }
+
+        function drawSkeleton(results) {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            if (results.landmarks) {
+                for (const landmarks of results.landmarks) {
+                    // 修改：高亮荧光绿骨骼线 (#00FF00) 并添加阴影 [cite: 69]
+                    canvasCtx.strokeStyle = "#00FF00"; canvasCtx.lineWidth = 3;
+                    canvasCtx.shadowBlur = 8; canvasCtx.shadowColor = "#00FF00";
+                    const connections = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+                    for (const [start, end] of connections) {
+                        canvasCtx.beginPath();
+                        canvasCtx.moveTo(landmarks[start].x * canvasElement.width, landmarks[start].y * canvasElement.height);
+                        canvasCtx.lineTo(landmarks[end].x * canvasElement.width, landmarks[end].y * canvasElement.height);
+                        canvasCtx.stroke();
+                    }
+                    // 修改：亮粉色关键点 (#FF007F) [cite: 73]
+                    canvasCtx.shadowBlur = 0;
+                    for (const point of landmarks) {
+                        canvasCtx.fillStyle = "#FF007F"; canvasCtx.beginPath();
+                        canvasCtx.arc(point.x * canvasElement.width, point.y * canvasElement.height, 4, 0, 2*Math.PI); canvasCtx.fill();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (webcamRunning) {
+                const results = handLandmarker.detectForVideo(videoElement, performance.now());
+                drawSkeleton(results);
+                targetProgress = 0; targetScale = 2.0;
+                if (results.landmarks && results.landmarks.length > 0) {
+                    results.landmarks.forEach((lm, i) => {
+                        const isRightHand = results.handednesses[i][0].categoryName === "Right";
+                        if (isRightHand) targetProgress = (lm[8].y > lm[6].y && lm[12].y > lm[10].y) ? 0 : 1;
+                        else {
+                            const dist = Math.sqrt(Math.pow(lm[4].x-lm[8].x,2)+Math.pow(lm[4].y-lm[8].y,2));
+                            targetScale = THREE.MathUtils.clamp(THREE.MathUtils.mapLinear(dist, 0.05, 0.35, 1.0, 4.5), 0.8, 5.0);
+                            targetRotY = THREE.MathUtils.clamp((lm[8].x - 0.5) * -2.0, -Math.PI/2.5, Math.PI/2.5);
+                            
+                            // 修改：高亮缩放虚线（带发光阴影） 
+                            canvasCtx.strokeStyle = "white"; canvasCtx.lineWidth = 2;
+                            canvasCtx.setLineDash([5, 5]); canvasCtx.shadowBlur = 10; canvasCtx.shadowColor = "white";
+                            canvasCtx.beginPath();
+                            canvasCtx.moveTo(lm[4].x * canvasElement.width, lm[4].y * canvasElement.height);
+                            canvasCtx.lineTo(lm[8].x * canvasElement.width, lm[8].y * canvasElement.height);
+                            canvasCtx.stroke(); canvasCtx.setLineDash([]); canvasCtx.shadowBlur = 0;
+                        }
+                    });
+                }
+            }
+            if (particles) {
+                const time = clock.getElapsedTime();
+                currentProgress = THREE.MathUtils.lerp(currentProgress, targetProgress, 0.05);
+                currentScale = THREE.MathUtils.lerp(currentScale, targetScale, 0.08);
+                if (bgPlane.material.map) {
+                    bgPlane.material.opacity = Math.max(0, (currentProgress - 0.7) * 3.3) * (0.6 + Math.sin(time)*0.1);
+                    bgPlane.scale.set(currentScale * 0.8 * (bgPlane.material.map.image.width / bgPlane.material.map.image.height), currentScale * 0.8, 1);
+                }
+                bloomPass.strength = THREE.MathUtils.mapLinear(currentScale, 0.8, 4.5, 0.4, 1.5);
+                particles.material.uniforms.uScale.value = currentScale;
+                particles.material.uniforms.uProgress.value = currentProgress;
+                particles.material.uniforms.uTime.value = time;
+                particles.scale.set(currentScale, currentScale, currentScale);
+                particles.rotation.y = THREE.MathUtils.lerp(particles.rotation.y, targetRotY, 0.05);
+            }
+            composer.render();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight); composer.setSize(window.innerWidth, window.innerHeight);
+        }
+        init();
+    </script>
+</body>
+</html>
